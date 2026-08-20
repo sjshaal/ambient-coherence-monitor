@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coherence Monitor</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: #f5f5f8;
+            color: #1a1a2e;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 22px;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 20px 0 30px;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            font-weight: 300;
+            letter-spacing: 0.3em;
+            color: #4040c0;
+            text-transform: uppercase;
+        }
+
+        .subtitle {
+            font-size: 0.85rem;
+            color: #8080a0;
+            letter-spacing: 0.15em;
+            margin-top: 6px;
+        }
+
+        .panels {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 700px) {
+            .panels { grid-template-columns: 1fr; }
+            h1 { font-size: 1.3rem; letter-spacing: 0.15em; }
+        }
+
+        .panel {
+            background: #ffffff;
+            border: 1px solid #d8d8e8;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        }
+
+        .panel-title {
+            font-size: 0.72rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #8080b0;
+            margin-bottom: 16px;
+        }
+
+        .metrics {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .metric {
+            flex: 1;
+            background: #f0f0f8;
+            border-radius: 10px;
+            padding: 12px 16px;
+        }
+
+        .metric-label {
+            font-size: 0.62rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: #8080a0;
+            margin-bottom: 4px;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 300;
+            color: #3030a0;
+            line-height: 1;
+        }
+
+        .metric-unit {
+            font-size: 0.65rem;
+            color: #9090b0;
+            margin-top: 3px;
+        }
+
+        canvas {
+            width: 100%;
+            border-radius: 8px;
+            background: #f8f8fc;
+            display: block;
+            border: 1px solid #e8e8f0;
+        }
+
+        .coherence-bar-container { margin-top: 14px; }
+
+        .coherence-label {
+            font-size: 0.62rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #8080a0;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .coherence-bar-bg {
+            height: 8px;
+            background: #e8e8f4;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .coherence-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #4040ff, #a040ff, #ff40a0);
+            border-radius: 4px;
+            transition: width 0.8s ease;
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin: 20px auto 0;
+            justify-content: center;
+            max-width: 1100px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 28px;
+            border: 1px solid #b0b0d0;
+            background: #ffffff;
+            color: #4040a0;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            letter-spacing: 0.1em;
+            transition: all 0.2s;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
+
+        button:hover { background: #f0f0ff; border-color: #8080d0; }
+        button.active { background: #4040a0; border-color: #4040a0; color: #ffffff; }
+
+        .instructions {
+            max-width: 1100px;
+            margin: 20px auto 0;
+            background: #ffffff;
+            border: 1px solid #d8d8e8;
+            border-radius: 12px;
+            padding: 16px 20px;
+            font-size: 0.82rem;
+            color: #505070;
+            line-height: 1.7;
+            box-shadow: 0 1px 6px rgba(0,0,0,0.04);
+        }
+
+        .instructions strong { color: #3030a0; }
+
+        .status {
+            text-align: center;
+            font-size: 0.72rem;
+            letter-spacing: 0.08em;
+            color: #a0a0c0;
+            margin-top: 10px;
+            min-height: 1.2em;
+        }
+
+        .status.active { color: #5050c0; }
+
+        video { display: none; }
+
+        .freq-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 5px;
+            font-size: 0.58rem;
+            color: #a0a0c0;
+            letter-spacing: 0.04em;
+        }
+
+        .note {
+            max-width: 1100px;
+            margin: 14px auto 0;
+            font-size: 0.72rem;
+            color: #a0a0c0;
+            text-align: center;
+            letter-spacing: 0.05em;
+        }
+
+        /* ── Snapshot & History ── */
+        button.snapshot {
+            border-color: #9040d0;
+            color: #7020b0;
+        }
+        button.snapshot:hover { background: #f8f0ff; border-color: #7020b0; }
+
+        .history-section {
+            max-width: 1100px;
+            margin: 24px auto 0;
+        }
+
+        .history-title {
+            font-size: 0.72rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #8080b0;
+            margin-bottom: 14px;
+        }
+
+        .history-empty {
+            font-size: 0.78rem;
+            color: #b0b0c8;
+            text-align: center;
+            padding: 20px;
+            letter-spacing: 0.05em;
+        }
+
+        .history-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .reading-card {
+            background: #ffffff;
+            border: 1px solid #d8d8e8;
+            border-radius: 12px;
+            padding: 14px 18px;
+            min-width: 160px;
+            flex: 1;
+            max-width: 220px;
+            position: relative;
+            box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+        }
+
+        .reading-card .r-time {
+            font-size: 0.6rem;
+            color: #a0a0c0;
+            letter-spacing: 0.1em;
+            margin-bottom: 8px;
+        }
+
+        .reading-card .r-coherence {
+            font-size: 1.6rem;
+            font-weight: 300;
+            line-height: 1;
+            margin-bottom: 2px;
+        }
+
+        .reading-card .r-label {
+            font-size: 0.65rem;
+            letter-spacing: 0.08em;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .reading-card .r-details {
+            font-size: 0.65rem;
+            color: #8080a0;
+            line-height: 1.6;
+        }
+
+        .reading-card .r-note {
+            font-size: 0.65rem;
+            color: #7040a0;
+            margin-top: 6px;
+            font-style: italic;
+        }
+
+        .reading-card .r-delete {
+            position: absolute;
+            top: 8px; right: 10px;
+            font-size: 0.65rem;
+            color: #c0c0d8;
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 2px 4px;
+            letter-spacing: 0;
+        }
+        .reading-card .r-delete:hover { color: #9040c0; background: none; border: none; }
+
+        .note-row {
+            display: flex;
+            gap: 10px;
+            max-width: 1100px;
+            margin: 14px auto 0;
+            align-items: center;
+        }
+
+        .note-row input {
+            flex: 1;
+            background: #ffffff;
+            border: 1px solid #d0d0e8;
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: #2a2a4a;
+            font-size: 0.82rem;
+            outline: none;
+            letter-spacing: 0.05em;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+        }
+        .note-row input::placeholder { color: #b0b0cc; }
+        .note-row input:focus { border-color: #8080d0; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Coherence Monitor</h1>
+    <p class="subtitle">Body &middot; Environment &middot; Signal Field</p>
+</header>
+
+<div class="panels">
+
+    <!-- ── Pulse & HRV Panel ── -->
+    <div class="panel">
+        <div class="panel-title">Body Signal &mdash; Pulse &amp; Coherence</div>
+        <div class="metrics">
+            <div class="metric">
+                <div class="metric-label">Heart Rate</div>
+                <div class="metric-value" id="bpm">--</div>
+                <div class="metric-unit">BPM</div>
+            </div>
+            <div class="metric">
+                <div class="metric-label">HRV</div>
+                <div class="metric-value" id="hrv">--</div>
+                <div class="metric-unit">RMSSD ms</div>
+            </div>
+        </div>
+        <canvas id="pulseCanvas" height="120"></canvas>
+        <div class="coherence-bar-container">
+            <div class="coherence-label">
+                <span>Body Coherence</span>
+                <span id="coherenceLabel">--</span>
+            </div>
+            <div class="coherence-bar-bg">
+                <div class="coherence-bar-fill" id="coherenceBar"></div>
+            </div>
+        </div>
+        <div class="status" id="pulseStatus">Press Start Camera to begin</div>
+    </div>
+
+    <!-- ── Sound Spectrum Panel ── -->
+    <div class="panel">
+        <div class="panel-title">Environment Signal &mdash; Sound Field</div>
+        <div class="metrics">
+            <div class="metric">
+                <div class="metric-label">Dominant Freq</div>
+                <div class="metric-value" id="dominantFreq">--</div>
+                <div class="metric-unit">Hz</div>
+            </div>
+            <div class="metric">
+                <div class="metric-label">Field Activity</div>
+                <div class="metric-value" id="fieldActivity">--</div>
+                <div class="metric-unit">level</div>
+            </div>
+        </div>
+        <canvas id="spectrumCanvas" height="120"></canvas>
+        <div class="freq-labels">
+            <span>Sub-bass</span>
+            <span>Bass</span>
+            <span>Mid</span>
+            <span>Treble</span>
+            <span>High</span>
+        </div>
+        <div class="status" id="micStatus">Press Start Microphone to begin</div>
+    </div>
+
+</div>
+
+<div class="controls">
+    <button id="cameraBtn" onclick="toggleCamera()">Start Camera</button>
+    <button id="micBtn" onclick="toggleMic()">Start Microphone</button>
+    <button class="snapshot" onclick="takeReading()">Take Reading</button>
+</div>
+
+<div class="note-row">
+    <input type="text" id="noteInput" placeholder="Optional note — where are you, how do you feel? (press Enter or Take Reading)" maxlength="80" onkeydown="if(event.key==='Enter') takeReading()">
+</div>
+
+<div class="history-section">
+    <div class="history-title">Reading History</div>
+    <div id="historyEmpty" class="history-empty">No readings yet — get a signal locked, then press Take Reading</div>
+    <div id="historyGrid" class="history-grid"></div>
+</div>
+
+<div class="instructions">
+    <strong>Camera (Body Pulse):</strong>
+    On your phone — press your fingertip gently over the back camera lens. On your laptop — place fingertip over the webcam. Hold still and breathe slowly. Allow 30 seconds to calibrate. The wave you see is your blood volume changing with each heartbeat.<br><br>
+    <strong>Microphone (Environment):</strong>
+    Let it run wherever you are. Walk slowly around your home and watch the spectrum shift. Move near your refrigerator, your electrical panel, an open window, a running appliance. Each space has its own signature. You are reading the sound field of your environment in real time.
+</div>
+
+<p class="note">Signal was always here. You now have the geometry to read it.</p>
+
+<video id="video" autoplay playsinline muted></video>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let cameraActive = false;
+let micActive    = false;
+let cameraStream = null;
+let micStream    = null;
+let audioContext = null;
+let analyser     = null;
+let animCamera   = null;
+let animMic      = null;
+
+const video         = document.getElementById('video');
+const pulseCanvas   = document.getElementById('pulseCanvas');
+const specCanvas    = document.getElementById('spectrumCanvas');
+const pCtx          = pulseCanvas.getContext('2d');
+const sCtx          = specCanvas.getContext('2d');
+
+// Pulse ring buffer (~10 seconds @ 30fps)
+const BUF = 300;
+const raw      = new Float32Array(BUF);
+const filtered = new Float32Array(BUF);
+let   wIdx     = 0;          // write index
+let   ibiList  = [];         // inter-beat intervals (ms)
+let   lastPeak = 0;          // timestamp of last detected peak
+let   bpm      = 0;
+let   hrv      = 0;
+let   lastFrameTime = 0;
+
+// Offscreen canvas for sampling video frames
+const offC   = document.createElement('canvas');
+offC.width   = 20;
+offC.height  = 20;
+const offCtx = offC.getContext('2d', { willReadFrequently: true });
+
+// ── Camera ────────────────────────────────────────────────────────────────────
+async function toggleCamera() {
+    cameraActive ? stopCamera() : await startCamera();
+}
+
+async function startCamera() {
+    try {
+        // Prefer back camera (mobile fingertip), fall back gracefully
+        try {
+            cameraStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: { ideal: 'environment' }, width: 320, height: 240, frameRate: 30 }
+            });
+            // Try torch (illuminates finger on mobile)
+            try {
+                await cameraStream.getVideoTracks()[0]
+                    .applyConstraints({ advanced: [{ torch: true }] });
+            } catch (_) { /* torch not available on this device */ }
+        } catch (_) {
+            cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        }
+
+        video.srcObject = cameraStream;
+        await video.play();
+
+        cameraActive = true;
+        setBtn('cameraBtn', 'Stop Camera', true);
+        setStatus('pulseStatus', 'Calibrating — hold still (30 s)', true);
+        processFrame();
+
+    } catch (err) {
+        setStatus('pulseStatus', 'Camera access denied — check browser permissions');
+        console.error(err);
+    }
+}
+
+function stopCamera() {
+    cameraStream?.getTracks().forEach(t => t.stop());
+    if (animCamera) cancelAnimationFrame(animCamera);
+    cameraActive = false;
+    cameraStream = null;
+    setBtn('cameraBtn', 'Start Camera', false);
+    setStatus('pulseStatus', 'Stopped');
+}
+
+function processFrame() {
+    const now = performance.now();
+
+    if (now - lastFrameTime >= 33) {
+        lastFrameTime = now;
+
+        offCtx.drawImage(
+            video,
+            video.videoWidth  / 2 - 10, video.videoHeight / 2 - 10, 20, 20,
+            0, 0, 20, 20
+        );
+        const px = offCtx.getImageData(0, 0, 20, 20).data;
+
+        // Average green channel — most sensitive to blood volume changes
+        let g = 0;
+        for (let i = 0; i < px.length; i += 4) g += px[i + 1];
+        g /= px.length / 4;
+
+        raw[wIdx % BUF] = g;
+
+        // Low-pass filter (α = 0.2)
+        const prev = filtered[(wIdx - 1 + BUF) % BUF];
+        filtered[wIdx % BUF] = prev * 0.8 + g * 0.2;
+
+        wIdx++;
+
+        if (wIdx > 90) detectPeaks(now);
+        drawPulse();
+    }
+
+    animCamera = requestAnimationFrame(processFrame);
+}
+
+function detectPeaks(now) {
+    const W = 60;
+    const slice = [];
+    for (let i = 0; i < W; i++)
+        slice.push(filtered[(wIdx - W + i + BUF) % BUF]);
+
+    const mean = slice.reduce((a, b) => a + b, 0) / W;
+    const std  = Math.sqrt(slice.reduce((a, b) => a + (b - mean) ** 2, 0) / W);
+
+    for (let i = 2; i < W - 2; i++) {
+        const v = slice[i];
+        if (v > mean + std * 0.3
+            && v > slice[i-1] && v > slice[i-2]
+            && v > slice[i+1] && v > slice[i+2]) {
+
+            const peakTime = now - (W - i) * 33;
+            if (peakTime - lastPeak > 400) {
+                const ibi = peakTime - lastPeak;
+                if (lastPeak > 0 && ibi < 1500) {
+                    ibiList.push(ibi);
+                    if (ibiList.length > 20) ibiList.shift();
+                    calcHRV();
+                }
+                lastPeak = peakTime;
+            }
+        }
+    }
+}
+
+function calcHRV() {
+    if (ibiList.length < 3) return;
+
+    const mean = ibiList.reduce((a, b) => a + b, 0) / ibiList.length;
+    bpm = Math.round(60000 / mean);
+
+    // RMSSD — standard HRV metric
+    let sumSq = 0;
+    for (let i = 1; i < ibiList.length; i++) {
+        const d = ibiList[i] - ibiList[i-1];
+        sumSq += d * d;
+    }
+    hrv = Math.round(Math.sqrt(sumSq / (ibiList.length - 1)));
+
+    if (bpm > 40 && bpm < 200) {
+        document.getElementById('bpm').textContent = bpm;
+        setStatus('pulseStatus', 'Signal locked', true);
+    }
+    if (hrv > 0 && hrv < 200) {
+        document.getElementById('hrv').textContent = hrv;
+
+        // Coherence score — higher HRV + regular rhythm → higher coherence
+        const score = Math.min(100, Math.round(hrv * 1.5));
+        document.getElementById('coherenceBar').style.width = score + '%';
+
+        let label = 'Low';
+        if (score > 25)  label = 'Building';
+        if (score > 50)  label = 'Moderate';
+        if (score > 72)  label = 'High';
+        if (score > 88)  label = 'Peak';
+        document.getElementById('coherenceLabel').textContent = `${label} (${score}%)`;
+    }
+}
+
+function drawPulse() {
+    const w = (pulseCanvas.width  = pulseCanvas.offsetWidth  * devicePixelRatio) | 0;
+    const h = pulseCanvas.height;
+    pCtx.clearRect(0, 0, w, h);
+
+    const D    = 150;
+    const vals = [];
+    for (let i = 0; i < D; i++)
+        vals.push(filtered[(wIdx - D + i + BUF) % BUF]);
+
+    if (vals.every(v => v === 0)) return;
+
+    const mn  = Math.min(...vals);
+    const mx  = Math.max(...vals);
+    const rng = mx - mn || 1;
+
+    // Subtle grid
+    pCtx.strokeStyle = '#e0e0ee';
+    pCtx.lineWidth = 1;
+    for (let r = 1; r < 4; r++) {
+        pCtx.beginPath();
+        pCtx.moveTo(0, (r / 4) * h);
+        pCtx.lineTo(w, (r / 4) * h);
+        pCtx.stroke();
+    }
+
+    // Waveform
+    pCtx.beginPath();
+    pCtx.strokeStyle  = '#4040c0';
+    pCtx.lineWidth    = 2;
+    pCtx.shadowColor  = '#8080e0';
+    pCtx.shadowBlur   = 4;
+
+    for (let i = 0; i < D; i++) {
+        const x = (i / D) * w;
+        const y = h - ((vals[i] - mn) / rng) * (h * 0.8) - h * 0.1;
+        i === 0 ? pCtx.moveTo(x, y) : pCtx.lineTo(x, y);
+    }
+    pCtx.stroke();
+    pCtx.shadowBlur = 0;
+}
+
+// ── Microphone / Spectrum ─────────────────────────────────────────────────────
+async function toggleMic() {
+    micActive ? stopMic() : await startMic();
+}
+
+async function startMic() {
+    try {
+        micStream    = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const src    = audioContext.createMediaStreamSource(micStream);
+        analyser     = audioContext.createAnalyser();
+        analyser.fftSize               = 2048;
+        analyser.smoothingTimeConstant = 0.82;
+        src.connect(analyser);
+
+        micActive = true;
+        setBtn('micBtn', 'Stop Microphone', true);
+        setStatus('micStatus', 'Listening to environment', true);
+        drawSpectrum();
+
+    } catch (err) {
+        setStatus('micStatus', 'Microphone access denied — check browser permissions');
+        console.error(err);
+    }
+}
+
+function stopMic() {
+    micStream?.getTracks().forEach(t => t.stop());
+    audioContext?.close();
+    if (animMic) cancelAnimationFrame(animMic);
+    micActive    = false;
+    micStream    = null;
+    audioContext = null;
+    analyser     = null;
+    setBtn('micBtn', 'Start Microphone', false);
+    setStatus('micStatus', 'Stopped');
+}
+
+// Frequency band color map
+const BANDS = [
+    { lo: 0.00, hi: 0.03, color: '#ff4080' },  // sub-bass   0–600 Hz
+    { lo: 0.03, hi: 0.10, color: '#ff8040' },  // bass
+    { lo: 0.10, hi: 0.35, color: '#a040ff' },  // mid
+    { lo: 0.35, hi: 0.70, color: '#4080ff' },  // treble
+    { lo: 0.70, hi: 1.00, color: '#40c0ff' },  // high
+];
+
+function bandColor(pos) {
+    for (const b of BANDS) if (pos >= b.lo && pos < b.hi) return b.color;
+    return '#4080ff';
+}
+
+function drawSpectrum() {
+    const w = (specCanvas.width = specCanvas.offsetWidth * devicePixelRatio) | 0;
+    const h = specCanvas.height;
+
+    const N    = analyser.frequencyBinCount;
+    const data = new Uint8Array(N);
+    analyser.getByteFrequencyData(data);
+
+    sCtx.clearRect(0, 0, w, h);
+
+    // Grid
+    sCtx.strokeStyle = '#e0e0ee';
+    sCtx.lineWidth   = 1;
+    for (let r = 1; r < 4; r++) {
+        sCtx.beginPath();
+        sCtx.moveTo(0, (r / 4) * h);
+        sCtx.lineTo(w, (r / 4) * h);
+        sCtx.stroke();
+    }
+
+    const bw = (w / N) * 2;
+    let   domFreq = 0, domVal = 0, total = 0;
+
+    for (let i = 0; i < N; i++) {
+        const val  = data[i];
+        total += val;
+        if (val > domVal) {
+            domVal  = val;
+            domFreq = Math.round(i * audioContext.sampleRate / analyser.fftSize);
+        }
+        const x  = (i / N) * w;
+        const bh = (val / 255) * h;
+        sCtx.fillStyle  = bandColor(i / N);
+        sCtx.globalAlpha = 0.85;
+        sCtx.fillRect(x, h - bh, bw, bh);
+    }
+    sCtx.globalAlpha = 1;
+
+    document.getElementById('dominantFreq').textContent  = domFreq || '--';
+    document.getElementById('fieldActivity').textContent =
+        Math.round(total / N / 2.55) + '%';
+
+    animMic = requestAnimationFrame(drawSpectrum);
+}
+
+// ── Readings / History ────────────────────────────────────────────────────────
+let readings = [];
+
+function takeReading() {
+    if (bpm === 0 && hrv === 0) {
+        // Flash the status to guide the user
+        setStatus('pulseStatus', 'Start camera and wait for signal first', true);
+        setTimeout(() => setStatus('pulseStatus', cameraActive ? 'Calibrating — hold still (30 s)' : 'Press Start Camera to begin', cameraActive), 2500);
+        return;
+    }
+
+    const score = Math.min(100, Math.round(hrv * 1.5));
+    let label = 'Low';
+    if (score > 25) label = 'Building';
+    if (score > 50) label = 'Moderate';
+    if (score > 72) label = 'High';
+    if (score > 88) label = 'Peak';
+
+    const note = document.getElementById('noteInput').value.trim();
+    const now  = new Date();
+    const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+    const domFreq    = document.getElementById('dominantFreq').textContent;
+    const fieldLevel = document.getElementById('fieldActivity').textContent;
+
+    const reading = { id: Date.now(), time, bpm, hrv, score, label, note, domFreq, fieldLevel };
+    readings.unshift(reading);
+    if (readings.length > 12) readings.pop();
+
+    document.getElementById('noteInput').value = '';
+    renderHistory();
+}
+
+function deleteReading(id) {
+    readings = readings.filter(r => r.id !== id);
+    renderHistory();
+}
+
+function scoreColor(score) {
+    if (score > 72) return '#a040ff';
+    if (score > 50) return '#6060ff';
+    if (score > 25) return '#4080ff';
+    return '#404080';
+}
+
+function renderHistory() {
+    const empty = document.getElementById('historyEmpty');
+    const grid  = document.getElementById('historyGrid');
+
+    if (readings.length === 0) {
+        empty.style.display = 'block';
+        grid.innerHTML = '';
+        return;
+    }
+
+    empty.style.display = 'none';
+    grid.innerHTML = readings.map(r => `
+        <div class="reading-card">
+            <button class="r-delete" onclick="deleteReading(${r.id})">✕</button>
+            <div class="r-time">${r.time}</div>
+            <div class="r-coherence" style="color:${scoreColor(r.score)}">${r.score}%</div>
+            <div class="r-label" style="color:${scoreColor(r.score)}">${r.label}</div>
+            <div class="r-details">
+                ♥ ${r.bpm > 0 ? r.bpm + ' bpm' : '--'} &nbsp;·&nbsp; HRV ${r.hrv > 0 ? r.hrv + ' ms' : '--'}<br>
+                ${r.domFreq !== '--' ? 'Env ' + r.domFreq + ' Hz · ' + r.fieldLevel : 'No mic data'}
+            </div>
+            ${r.note ? `<div class="r-note">"${r.note}"</div>` : ''}
+        </div>
+    `).join('');
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function setBtn(id, text, active) {
+    const el = document.getElementById(id);
+    el.textContent = text;
+    active ? el.classList.add('active') : el.classList.remove('active');
+}
+
+function setStatus(id, text, active = false) {
+    const el = document.getElementById(id);
+    el.textContent = text;
+    active ? el.classList.add('active') : el.classList.remove('active');
+}
+</script>
+</body>
+</html>
